@@ -21,10 +21,6 @@ const userSchema = new mongoose.Schema(
         type:Number,
         trib:true,
     },
-    address:{
-        type: String,
-        trim: true,
-    },
     role: {
       type: String,
       enum: ["admin", "user", "subadmin"],
@@ -41,14 +37,14 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.pre("save", async function (next) {
-  const user = this;
+// userSchema.pre("save", async function (next) {
+//   const user = this;
 
-  if (user.isModified("password")) {
-    user.password = bcrypt.hash(user.password, 8);
-  }
-  next();
-});
+//   if (user.isModified("password")) {
+//     user.password = bcrypt.hash(user.password, 8);
+//   }
+//   next();
+// });
 
 const User = mongoose.model("users", userSchema);
 module.exports = User;

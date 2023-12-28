@@ -1,42 +1,113 @@
-const { userService,emailService} = require("../services");
+const { userService, emailService } = require("../services");
 const ejs = require("ejs");
 const path = require("path");
-const bcrypt=require("bcryptjs");
-const jwt=require("jsonwebtoken")
+const bcrypt = require("bcryptjs");
+const moment = require("moment");
+const jwt = require("jsonwebtoken");
+const config = require("../config/config");
 
-/**Register */
+
+// const register = async (req, res) => {
+//   try {
+//     const { email, password, role } = req.body;
+
+//     const hashPassword = await bcrypt.hash(password, 8);
+
+//     let option = {
+//       email,
+//       role,
+//       exp: moment().add(1, "days").unix(),
+//     };
+
+//     const token = await jwt.sign(option, config.jwt.secret_key);
+//     const filter = {
+//       email,
+//       role,
+//       password: hashPassword,
+//       token,
+//     };
+
+//     const data = await userService.createUser(filter);
+//     res.status(200).json({
+//       success: true,
+//       message: "User register successfully!",
+//       data: { data },
+//     });
+//   } catch (error) {
+//   }
+
+// };
 const register = async (req, res) => {
-  const { email, password, role } = req.body;
+  try {
+    const reqBody = req.body
+    const { email, password, role } = req.body;
 
-  const hashPassword = await bcrypt.hash(password, 8);
+    // Check if the email is already registered
+    const existingUser = await userService.getUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is already registered. Please use a different email.",
+      });
+    }
+    ejs.renderFile(
+      path.join(__dirname, "../views/otp-template.ejs"),
+      {
+        email: reqBody.email,
+        otp: ("0".repeat(4) + Math.floor(Math.random() * 10 ** 4)).slice(-4),
+        first_name: reqBody.first_name,
+        last_name: reqBody.last_name,
+      },
+      async (err, data) => {
+        if (err) {
+          let userCreated = await userService.getUserByEmail(reqBody.email);
+          if (userCreated) {
+            await userService.deleteUserByEmail(reqBody.email);
+          }
+          throw new Error("Something went wrong, please try again.");
+        } else {
+          emailService.sendMail(reqBody.email, data, "Verify Email");
+        }
+      }
+    );
+    const hashPassword = await bcrypt.hash(password, 8);
 
-  let option = {
-    email,
-    role,
-    exp: moment().add(1, "days").unix(),
-  };
+    let option = {
+      email,
+      role,
+      exp: moment().add(1, "days").unix(),
+    };
 
-  const token = await jwt.sign(option, jwtSecrectKey);
+    const token = await jwt.sign(option, config.jwt.secret_key);
+    const filter = {
+      email,
+      role,
+      password: hashPassword,
+      token,
+    };
 
-  const filter = {
-    email,
-    role,
-    password: hashPassword,
-    token,
-  };
-
-  const data = await userService.createUser(filter);
-
-  res.status(200).json({ data });
+    const data = await userService.createUser(filter);
+    res.status(200).json({
+      success: true,
+      message: "User registered successfully!",
+      data: { data },
+    });
+  } catch (error) {
+    // Handle other errors
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
 };
 
-/**Login */
+
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const findUser = await userService.findUserByEmail({ email });
-
     if (!findUser) throw Error("User not found");
 
     const successPassword = await bcrypt.compare(password, findUser.password);
@@ -50,15 +121,18 @@ const login = async (req, res) => {
 
     let token;
     if (findUser && successPassword) {
-      token = await jwt.sign(option, jwtSecrectKey);
+      token = await jwt.sign(option, config.jwt.secret_key);
     }
-
     let data;
     if (token) {
       data = await userService.findUserAndUpdate(findUser._id, token);
     }
 
-    res.status(200).json({ data });
+    res.status(200).json({
+      success: true,
+      message: "User login successfully!",
+      data: { data },
+    });
   } catch (error) {
     res.status(404).json({ error: error.message });
   }
@@ -66,11 +140,15 @@ const login = async (req, res) => {
 
 const getAllUser = async (req, res) => {
   try {
-    console.log(req.headers.token,'');
-    await auth(req.headers.token, ['admin']);
+    console.log(req.headers.token, "");
+    // await auth(req.headers.token, ["admin"]);
 
     const data = await userService.getAllUser({ role: "admin" });
-    res.status(200).json({ data });
+    res.status(200).json({
+      success: true,
+      message: "User login successfully!",
+      data: { data },
+    });
   } catch (error) {
     res.status(404).json({ error: error.message });
   }
@@ -91,6 +169,7 @@ const createUser = async (req, res) => {
     if (!user) {
       throw new Error("Something went wrong, please try again or later!");
     }
+
     ejs.renderFile(
       path.join(__dirname, "../views/otp-template.ejs"),
       {
@@ -100,17 +179,14 @@ const createUser = async (req, res) => {
         last_name: reqBody.last_name,
       },
       async (err, data) => {
-        console.log(reqBody.email);
         if (err) {
           let userCreated = await userService.getUserByEmail(reqBody.email);
           if (userCreated) {
-            console.log(userCreated)
             await userService.deleteUserByEmail(reqBody.email);
           }
           throw new Error("Something went wrong, please try again.");
         } else {
           emailService.sendMail(reqBody.email, data, "Verify Email");
-          console.log(reqBody.email, "succsess");
         }
       }
     );
@@ -202,13 +278,11 @@ const deleteUser = async (req, res) => {
 const sendMail = async (req, res) => {
   try {
     const reqBody = req.body;
-    console.log('get req body');
     const sendEmail = await emailService.sendMail(
       reqBody.email,
       reqBody.subject,
       reqBody.text
-      );
-      console.log('Send Done..');
+    );
     if (!sendEmail) {
       throw new Error("Something went wrong, please try again or later.");
     }
@@ -230,5 +304,5 @@ module.exports = {
   getUserDetails,
   updateDetails,
   deleteUser,
-  sendMail
+  sendMail,
 };

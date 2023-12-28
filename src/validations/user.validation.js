@@ -8,7 +8,6 @@ const createUser = {
       email: Joi.string().required().trim(),
       password: Joi.string().required().trim(),
       phone_no: Joi.number().integer().required(),
-      address: Joi.string().required().trim(),
     }),
   };
 

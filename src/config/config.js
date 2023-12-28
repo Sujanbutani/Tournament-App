@@ -31,10 +31,10 @@ module.exports = {
   port: envVars.PORT,
   mongodb: {
     url: envVars.MONGODB_URL,
-    options: {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    },
+    // options: {
+    //   useNewUrlParser: true,
+    //   useUnifiedTopology: true,
+    // },
   },
   base_url: envVars.BASE_URL,
   jwt: {

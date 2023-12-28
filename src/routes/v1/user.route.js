@@ -5,9 +5,9 @@ const validate = require("../../middlewares/validate");
 
 const router = express.Router();
 
-router.post("/register", userController.register);
-router.post("/login", userController.login);
-router.get("/allusers", userController.getAllUser);
+// router.post("/register", userController.register);
+// router.post("/login", userController.login);
+// router.get("/allusers", userController.getAllUser);
 
 /** create user */
 router.post(
